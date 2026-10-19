@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 data class NavItemModel(
     val route: String,
-    val icon: ImageVector,
-    val label: String
+    val label: String,
+    val iconRes: Int? = null,
+    val icon: ImageVector? = null
 )

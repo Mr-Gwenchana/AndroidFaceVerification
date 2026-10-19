@@ -1,18 +1,7 @@
 package com.bachelor.projectiii.screens
 
-import android.Manifest
-import android.content.Context
-import android.content.pm.PackageManager
-import android.hardware.camera2.CameraManager
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.camera2.interop.Camera2CameraInfo
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ConcurrentCamera
-import androidx.camera.core.Preview
-import androidx.camera.core.UseCaseGroup
-import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -42,10 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-
-private const val TAG = "FaceRecognitionScreen"
+import com.bachelor.projectiii.camera.CameraManager
+import com.bachelor.projectiii.camera.CameraPermission
 
 @Composable
 fun FaceRecognitionScreen(
@@ -55,128 +43,47 @@ fun FaceRecognitionScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var hasCameraPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
+    val cameraPermission = remember { CameraPermission(context) }
+    var hasPermission by remember { mutableStateOf(cameraPermission.isGranted()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        hasCameraPermission = isGranted
+        hasPermission = isGranted
     }
 
-    var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
+    val cameraManager = remember { CameraManager.getInstance(context) }
+    var isCameraInitialized by remember { mutableStateOf(false) }
+
     var previewView1 by remember { mutableStateOf<PreviewView?>(null) }
     var previewView2 by remember { mutableStateOf<PreviewView?>(null) }
 
     LaunchedEffect(Unit) {
-        if (!hasCameraPermission) {
-            permissionLauncher.launch(Manifest.permission.CAMERA)
+        if (!cameraPermission.isGranted()) {
+            permissionLauncher.launch(cameraPermission.permission)
+        }
+        cameraManager.initialize {
+            isCameraInitialized = true
         }
     }
 
-    LaunchedEffect(Unit) {
-        val future = ProcessCameraProvider.getInstance(context)
-        future.addListener({
-            try {
-                cameraProvider = future.get()
-            } catch (e: Exception) {
-                Log.e(TAG, "Lỗi ProcessCameraProvider", e)
-            }
-        }, ContextCompat.getMainExecutor(context))
-    }
-
-    LaunchedEffect(hasCameraPermission, cameraProvider, previewView1, previewView2) {
-        val provider = cameraProvider ?: return@LaunchedEffect
+    LaunchedEffect(hasPermission, isCameraInitialized, previewView1, previewView2) {
         val view1 = previewView1 ?: return@LaunchedEffect
-        val view2 = previewView2 ?: return@LaunchedEffect
-        if (!hasCameraPermission) return@LaunchedEffect
+        if (!hasPermission || !isCameraInitialized) return@LaunchedEffect
 
-        try {
-            provider.unbindAll()
-
-            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            val cameraIds = cameraManager.cameraIdList
-            Log.d(TAG, "Danh sách ID camera tìm thấy: ${cameraIds.joinToString()}")
-
-            val availableConcurrent = provider.availableConcurrentCameraInfos
-            Log.d(TAG, "Số cặp Concurrent Camera khả dụng: ${availableConcurrent.size}")
-            for (combination in availableConcurrent) {
-                val ids = combination.map { Camera2CameraInfo.from(it).cameraId }
-                Log.d(TAG, "Concurrent pair: $ids")
-            }
-
-            if (cameraIds.size >= 2) {
-                val id1 = cameraIds[0]
-                val id2 = cameraIds[1]
-                Log.d(TAG, "Lấy 2 camera đầu tiên: Camera 1 (ID: $id1), Camera 2 (ID: $id2)")
-
-                val preview1 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(view1.surfaceProvider)
-                }
-                val preview2 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(view2.surfaceProvider)
-                }
-
-                val selector1 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
-                    }
-                    .build()
-
-                val selector2 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id2 }
-                    }
-                    .build()
-
-                try {
-                    val config1 = ConcurrentCamera.SingleCameraConfig(
-                        selector1,
-                        UseCaseGroup.Builder().addUseCase(preview1).build(),
-                        lifecycleOwner
-                    )
-                    val config2 = ConcurrentCamera.SingleCameraConfig(
-                        selector2,
-                        UseCaseGroup.Builder().addUseCase(preview2).build(),
-                        lifecycleOwner
-                    )
-
-                    Log.d(TAG, "Đang bind Concurrent Camera với ID: $id1 và ID: $id2...")
-                    provider.bindToLifecycle(listOf(config1, config2))
-                    Log.d(TAG, "Bind Concurrent Camera thành công")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Không thể bind Concurrent Camera: ${e.message}", e)
-                    provider.unbindAll()
-                    Log.d(TAG, "Fallback: Bind Camera 1 (ID: $id1)")
-                    provider.bindToLifecycle(lifecycleOwner, selector1, preview1)
-                }
-            } else if (cameraIds.isNotEmpty()) {
-                val id1 = cameraIds[0]
-                val preview1 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(view1.surfaceProvider)
-                }
-                val selector1 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
-                    }
-                    .build()
-                Log.d(TAG, "Chỉ có 1 camera, bind ID: $id1")
-                provider.bindToLifecycle(lifecycleOwner, selector1, preview1)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Lỗi khởi tạo camera", e)
-        }
+        cameraManager.startCameras(
+            lifecycleOwner = lifecycleOwner,
+            primaryPreviewView = view1,
+            secondaryPreviewView = previewView2,
+            enablePreview = true,
+            enableDualCamera = true,
+            enableImageAnalysis = false
+        )
     }
 
     DisposableEffect(Unit) {
         onDispose {
-            cameraProvider?.unbindAll()
+            cameraManager.unbindAll()
         }
     }
 
@@ -232,7 +139,7 @@ fun FaceRecognitionScreen(
 
         IconButton(
             onClick = {
-                cameraProvider?.unbindAll()
+                cameraManager.unbindAll()
                 onNavigateBack()
             },
             modifier = Modifier

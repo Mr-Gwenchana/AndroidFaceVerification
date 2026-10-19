@@ -1,7 +1,6 @@
 package com.bachelor.projectiii.`const`
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Face
+import com.bachelor.projectiii.R
 import com.bachelor.projectiii.models.NavItemModel
 
 object MainNavRoutes {
@@ -13,7 +12,7 @@ object MainNavRoutes {
 val mainNavItems = listOf(
     NavItemModel(
         route = MainNavRoutes.FACE_RECOGNITION,
-        icon = Icons.Default.Face,
-        label = "Face ID"
+        label = "Face ID",
+        iconRes = R.drawable.face_id_icon
     )
 )

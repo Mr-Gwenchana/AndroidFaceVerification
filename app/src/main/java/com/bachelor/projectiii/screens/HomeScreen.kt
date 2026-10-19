@@ -29,12 +29,21 @@ fun HomeScreen(
     ) {
         SideNavBar {
             navItems.forEach { item ->
-                SideNavItem(
-                    icon = item.icon,
-                    label = item.label,
-                    isSelected = selectedRoute == item.route,
-                    onClick = { onNavigate(item.route) }
-                )
+                if (item.iconRes != null) {
+                    SideNavItem(
+                        iconRes = item.iconRes,
+                        label = item.label,
+                        isSelected = selectedRoute == item.route,
+                        onClick = { onNavigate(item.route) }
+                    )
+                } else if (item.icon != null) {
+                    SideNavItem(
+                        icon = item.icon,
+                        label = item.label,
+                        isSelected = selectedRoute == item.route,
+                        onClick = { onNavigate(item.route) }
+                    )
+                }
             }
         }
 
