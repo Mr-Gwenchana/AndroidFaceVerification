@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Docs untracked folders & files
+docs/plans/
+docs/logs/
+docs/prj-structure-now.md
