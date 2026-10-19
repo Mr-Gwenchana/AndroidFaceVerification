@@ -62,19 +62,18 @@ fun FaceRecognitionScreen(
         if (!cameraPermission.isGranted()) {
             permissionLauncher.launch(cameraPermission.permission)
         }
-        cameraManager.initialize {
-            isCameraInitialized = true
-        }
+        isCameraInitialized = cameraManager.initialize()
     }
 
     LaunchedEffect(hasPermission, isCameraInitialized, previewView1, previewView2) {
         val view1 = previewView1 ?: return@LaunchedEffect
+        val view2 = previewView2 ?: return@LaunchedEffect
         if (!hasPermission || !isCameraInitialized) return@LaunchedEffect
 
         cameraManager.startCameras(
             lifecycleOwner = lifecycleOwner,
             primaryPreviewView = view1,
-            secondaryPreviewView = previewView2,
+            secondaryPreviewView = view2,
             enablePreview = true,
             enableDualCamera = true,
             enableImageAnalysis = false

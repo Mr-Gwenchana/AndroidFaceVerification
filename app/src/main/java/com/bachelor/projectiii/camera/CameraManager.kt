@@ -13,25 +13,21 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
+import androidx.concurrent.futures.await
 
 class CameraManager private constructor(context: Context) {
     private val appContext = context.applicationContext
     private var cameraProvider: ProcessCameraProvider? = null
 
-    fun initialize(onInitialized: () -> Unit = {}) {
-        if (cameraProvider != null) {
-            onInitialized()
-            return
+    suspend fun initialize(): Boolean {
+        if (cameraProvider != null) return true
+        return try {
+            cameraProvider = ProcessCameraProvider.getInstance(appContext).await()
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Lỗi khởi tạo ProcessCameraProvider", e)
+            false
         }
-        val future = ProcessCameraProvider.getInstance(appContext)
-        future.addListener({
-            try {
-                cameraProvider = future.get()
-                onInitialized()
-            } catch (e: Exception) {
-                Log.e(TAG, "Lỗi khởi tạo ProcessCameraProvider", e)
-            }
-        }, ContextCompat.getMainExecutor(appContext))
     }
 
     fun startCameras(
