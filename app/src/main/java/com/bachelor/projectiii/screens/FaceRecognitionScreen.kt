@@ -9,7 +9,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ConcurrentCamera
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -69,8 +71,8 @@ fun FaceRecognitionScreen(
     }
 
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
-    var rgbPreviewView by remember { mutableStateOf<PreviewView?>(null) }
-    var irPreviewView by remember { mutableStateOf<PreviewView?>(null) }
+    var previewView1 by remember { mutableStateOf<PreviewView?>(null) }
+    var previewView2 by remember { mutableStateOf<PreviewView?>(null) }
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
@@ -89,10 +91,10 @@ fun FaceRecognitionScreen(
         }, ContextCompat.getMainExecutor(context))
     }
 
-    LaunchedEffect(hasCameraPermission, cameraProvider, rgbPreviewView, irPreviewView) {
+    LaunchedEffect(hasCameraPermission, cameraProvider, previewView1, previewView2) {
         val provider = cameraProvider ?: return@LaunchedEffect
-        val rgbView = rgbPreviewView ?: return@LaunchedEffect
-        val irView = irPreviewView ?: return@LaunchedEffect
+        val view1 = previewView1 ?: return@LaunchedEffect
+        val view2 = previewView2 ?: return@LaunchedEffect
         if (!hasCameraPermission) return@LaunchedEffect
 
         try {
@@ -100,44 +102,75 @@ fun FaceRecognitionScreen(
 
             val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
             val cameraIds = cameraManager.cameraIdList
+            Log.d(TAG, "Danh sách ID camera tìm thấy: ${cameraIds.joinToString()}")
+
+            val availableConcurrent = provider.availableConcurrentCameraInfos
+            Log.d(TAG, "Số cặp Concurrent Camera khả dụng: ${availableConcurrent.size}")
+            for (combination in availableConcurrent) {
+                val ids = combination.map { Camera2CameraInfo.from(it).cameraId }
+                Log.d(TAG, "Concurrent pair: $ids")
+            }
 
             if (cameraIds.size >= 2) {
+                val id1 = cameraIds[0]
+                val id2 = cameraIds[1]
+                Log.d(TAG, "Lấy 2 camera đầu tiên: Camera 1 (ID: $id1), Camera 2 (ID: $id2)")
+
                 val preview1 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(rgbView.surfaceProvider)
+                    it.setSurfaceProvider(view1.surfaceProvider)
+                }
+                val preview2 = Preview.Builder().build().also {
+                    it.setSurfaceProvider(view2.surfaceProvider)
+                }
+
+                val selector1 = CameraSelector.Builder()
+                    .addCameraFilter { cameras ->
+                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
+                    }
+                    .build()
+
+                val selector2 = CameraSelector.Builder()
+                    .addCameraFilter { cameras ->
+                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id2 }
+                    }
+                    .build()
+
+                try {
+                    val config1 = ConcurrentCamera.SingleCameraConfig(
+                        selector1,
+                        UseCaseGroup.Builder().addUseCase(preview1).build(),
+                        lifecycleOwner
+                    )
+                    val config2 = ConcurrentCamera.SingleCameraConfig(
+                        selector2,
+                        UseCaseGroup.Builder().addUseCase(preview2).build(),
+                        lifecycleOwner
+                    )
+
+                    Log.d(TAG, "Đang bind Concurrent Camera với ID: $id1 và ID: $id2...")
+                    provider.bindToLifecycle(listOf(config1, config2))
+                    Log.d(TAG, "Bind Concurrent Camera thành công")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Không thể bind Concurrent Camera: ${e.message}", e)
+                    provider.unbindAll()
+                    Log.d(TAG, "Fallback: Bind Camera 1 (ID: $id1)")
+                    provider.bindToLifecycle(lifecycleOwner, selector1, preview1)
+                }
+            } else if (cameraIds.isNotEmpty()) {
+                val id1 = cameraIds[0]
+                val preview1 = Preview.Builder().build().also {
+                    it.setSurfaceProvider(view1.surfaceProvider)
                 }
                 val selector1 = CameraSelector.Builder()
                     .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == cameraIds[0] }
+                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
                     }
                     .build()
-
-                val preview2 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(irView.surfaceProvider)
-                }
-                val selector2 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == cameraIds[1] }
-                    }
-                    .build()
-
+                Log.d(TAG, "Chỉ có 1 camera, bind ID: $id1")
                 provider.bindToLifecycle(lifecycleOwner, selector1, preview1)
-                try {
-                    provider.bindToLifecycle(lifecycleOwner, selector2, preview2)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Không hỗ trợ dual camera đồng thời, chỉ dùng camera 1", e)
-                }
-            } else if (cameraIds.isNotEmpty()) {
-                val preview1 = Preview.Builder().build().also {
-                    it.setSurfaceProvider(rgbView.surfaceProvider)
-                }
-                provider.bindToLifecycle(
-                    lifecycleOwner,
-                    CameraSelector.DEFAULT_BACK_CAMERA,
-                    preview1
-                )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Lỗi bind camera", e)
+            Log.e(TAG, "Lỗi khởi tạo camera", e)
         }
     }
 
@@ -170,7 +203,7 @@ fun FaceRecognitionScreen(
                         PreviewView(ctx).apply {
                             scaleType = PreviewView.ScaleType.FILL_CENTER
                             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                            rgbPreviewView = this
+                            previewView1 = this
                         }
                     },
                     modifier = Modifier.fillMaxSize()
@@ -189,7 +222,7 @@ fun FaceRecognitionScreen(
                         PreviewView(ctx).apply {
                             scaleType = PreviewView.ScaleType.FILL_CENTER
                             implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                            irPreviewView = this
+                            previewView2 = this
                         }
                     },
                     modifier = Modifier.fillMaxSize()
