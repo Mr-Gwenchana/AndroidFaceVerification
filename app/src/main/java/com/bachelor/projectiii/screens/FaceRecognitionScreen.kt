@@ -1,7 +1,5 @@
 package com.bachelor.projectiii.screens
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.bachelor.projectiii.camera.CameraManager
-import com.bachelor.projectiii.camera.CameraPermission
+import com.bachelor.projectiii.camera.rememberInstOfCameraPermission
 
 @Composable
 fun FaceRecognitionScreen(
@@ -43,14 +41,8 @@ fun FaceRecognitionScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val cameraPermission = remember { CameraPermission(context) }
-    var hasPermission by remember { mutableStateOf(cameraPermission.isGranted()) }
-
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        hasPermission = isGranted
-    }
+    val cameraPermission = rememberInstOfCameraPermission()
+    val hasCameraPermission = cameraPermission.hasCameraPermission
 
     val cameraManager = remember { CameraManager.getInstance(context) }
     var isCameraInitialized by remember { mutableStateOf(false) }
@@ -59,16 +51,14 @@ fun FaceRecognitionScreen(
     var previewView2 by remember { mutableStateOf<PreviewView?>(null) }
 
     LaunchedEffect(Unit) {
-        if (!cameraPermission.isGranted()) {
-            permissionLauncher.launch(cameraPermission.permission)
-        }
+        cameraPermission.grant()
         isCameraInitialized = cameraManager.initialize()
     }
 
-    LaunchedEffect(hasPermission, isCameraInitialized, previewView1, previewView2) {
+    LaunchedEffect(hasCameraPermission, isCameraInitialized, previewView1, previewView2) {
         val view1 = previewView1 ?: return@LaunchedEffect
         val view2 = previewView2 ?: return@LaunchedEffect
-        if (!hasPermission || !isCameraInitialized) return@LaunchedEffect
+        if (!hasCameraPermission || !isCameraInitialized) return@LaunchedEffect
 
         cameraManager.startCameras(
             lifecycleOwner = lifecycleOwner,
