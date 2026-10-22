@@ -1,7 +1,6 @@
 package com.bachelor.projectiii.camera
 
 import android.content.Context
-import android.hardware.camera2.CameraManager as SystemCameraManager
 import android.util.Log
 import androidx.camera.camera2.interop.Camera2CameraInfo
 import androidx.camera.core.CameraSelector
@@ -44,8 +43,8 @@ class CameraManager private constructor(context: Context) {
         try {
             provider.unbindAll()
 
-            val systemCameraManager = appContext.getSystemService(Context.CAMERA_SERVICE) as SystemCameraManager
-            val cameraIds = systemCameraManager.cameraIdList
+            val availableConcurrent = provider.availableConcurrentCameraInfos
+            val concurrentPair = availableConcurrent.firstOrNull { it.size >= 2 }
 
             val primaryUseCases = UseCaseGroup.Builder()
 
@@ -66,21 +65,13 @@ class CameraManager private constructor(context: Context) {
 
             val primaryGroup = primaryUseCases.build()
 
-            if (enableDualCamera && secondaryPreviewView != null && cameraIds.size >= 2) {
-                val id1 = cameraIds[0]
-                val id2 = cameraIds[1]
+            if (enableDualCamera && secondaryPreviewView != null && concurrentPair != null) {
+                val selector1 = concurrentPair[1].cameraSelector
+                val selector2 = concurrentPair[0].cameraSelector
 
-                val selector1 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
-                    }
-                    .build()
-
-                val selector2 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id2 }
-                    }
-                    .build()
+                val id1 = Camera2CameraInfo.from(concurrentPair[1]).cameraId
+                val id2 = Camera2CameraInfo.from(concurrentPair[0]).cameraId
+                Log.d(TAG, "Khởi chạy Concurrent Camera với ID: $id1 và ID: $id2")
 
                 val secondaryUseCases = UseCaseGroup.Builder()
                 if (enablePreview) {
@@ -107,14 +98,12 @@ class CameraManager private constructor(context: Context) {
                     provider.unbindAll()
                     provider.bindToLifecycle(lifecycleOwner, selector1, primaryGroup)
                 }
-            } else if (cameraIds.isNotEmpty()) {
-                val id1 = cameraIds[0]
-                val selector1 = CameraSelector.Builder()
-                    .addCameraFilter { cameras ->
-                        cameras.filter { Camera2CameraInfo.from(it).cameraId == id1 }
-                    }
-                    .build()
-                provider.bindToLifecycle(lifecycleOwner, selector1, primaryGroup)
+            } else {
+                val fallbackSelector = concurrentPair?.getOrNull(1)?.cameraSelector
+                    ?: concurrentPair?.getOrNull(0)?.cameraSelector
+                    ?: provider.availableCameraInfos.firstOrNull()?.cameraSelector
+                    ?: CameraSelector.DEFAULT_BACK_CAMERA
+                provider.bindToLifecycle(lifecycleOwner, fallbackSelector, primaryGroup)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Lỗi startCameras: ${e.message}", e)

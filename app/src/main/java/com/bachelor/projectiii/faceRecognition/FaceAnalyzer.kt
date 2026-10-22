@@ -2,18 +2,27 @@ package com.bachelor.projectiii.faceRecognition
 
 import androidx.camera.core.ImageProxy
 import com.bachelor.projectiii.interfaces.IFaceAnalyzer
+import com.bachelor.projectiii.interfaces.IFaceStorageManager
 import com.bachelor.projectiii.models.FaceDetectionResModel
+import com.bachelor.projectiii.utils.FaceCropUtils
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetector
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 class FaceAnalyzer(
+    private val storageManager: IFaceStorageManager? = null,
+    private val saveIntervalMs: Long = 2000L,
     private val onResult: (List<FaceDetectionResModel>) -> Unit
 ) : IFaceAnalyzer {
 
     private val isProcessing = AtomicBoolean(false)
+    private var lastSavedTime = 0L
+    private val ioScope = CoroutineScope(Dispatchers.IO)
 
     private val detector: FaceDetector = FaceDetection.getClient(
         FaceDetectorOptions.Builder()
@@ -45,16 +54,33 @@ class FaceAnalyzer(
 
         detector.process(inputImage)
             .addOnSuccessListener { faces ->
-                val results = faces.take(1).map { face ->
-                    FaceDetectionResModel(
-                        boundingBox = face.boundingBox,
-                        trackingId = face.trackingId,
+                val primaryFace = faces.firstOrNull()
+                if (primaryFace != null) {
+                    val result = FaceDetectionResModel(
+                        boundingBox = primaryFace.boundingBox,
+                        trackingId = primaryFace.trackingId,
                         imageWidth = imageWidth,
                         imageHeight = imageHeight,
                         rotationDegrees = rotation
                     )
+                    onResult(listOf(result))
+
+                    if (storageManager != null) {
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastSavedTime >= saveIntervalMs) {
+                            lastSavedTime = currentTime
+                            val croppedBitmap = FaceCropUtils.cropFace(imageProxy, primaryFace.boundingBox, 112)
+                            if (croppedBitmap != null) {
+                                ioScope.launch {
+                                    storageManager.saveCroppedFace(croppedBitmap, primaryFace.trackingId)
+                                    croppedBitmap.recycle()
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    onResult(emptyList())
                 }
-                onResult(results)
             }
             .addOnCompleteListener {
                 imageProxy.close()
