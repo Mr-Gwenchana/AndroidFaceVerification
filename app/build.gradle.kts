@@ -61,6 +61,9 @@ dependencies {
     // DataStore Preferences
     implementation(libs.androidx.datastore.preferences)
 
+    // ML Kit Face Detection (Bundled)
+    implementation(libs.mlkit.face.detection)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

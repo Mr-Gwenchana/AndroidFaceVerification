@@ -11,9 +11,10 @@ import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleOwner
 import androidx.concurrent.futures.await
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 
 class CameraManager private constructor(context: Context) {
     private val appContext = context.applicationContext
@@ -59,7 +60,7 @@ class CameraManager private constructor(context: Context) {
                 val analysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .build()
-                analysis.setAnalyzer(ContextCompat.getMainExecutor(appContext), analyzer)
+                analysis.setAnalyzer(Dispatchers.Default.asExecutor(), analyzer)
                 primaryUseCases.addUseCase(analysis)
             }
 
