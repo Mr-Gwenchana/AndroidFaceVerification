@@ -58,9 +58,6 @@ dependencies {
     // Navigation Compose
     implementation(libs.androidx.navigation.compose)
 
-    // DataStore Preferences
-    implementation(libs.androidx.datastore.preferences)
-
     // ML Kit Face Detection (Bundled)
     implementation(libs.mlkit.face.detection)
 

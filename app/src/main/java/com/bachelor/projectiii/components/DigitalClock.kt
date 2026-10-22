@@ -34,7 +34,8 @@ fun DigitalClock(
     LaunchedEffect(Unit) {
         while (true) {
             currentTime = Date()
-            delay(1000L)
+            val nextMinuteDelay = 60_000L - (System.currentTimeMillis() % 60_000L)
+            delay(maxOf(nextMinuteDelay, 1000L))
         }
     }
 

@@ -120,6 +120,7 @@ fun FaceRecognitionScreen(
 
                 FaceBoundingBoxOverlay(
                     detectedFaces = detectedFaces,
+                    isMirrored = true,
                     modifier = Modifier.fillMaxSize()
                 )
             }
