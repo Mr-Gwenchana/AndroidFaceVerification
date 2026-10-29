@@ -1,5 +1,7 @@
 package com.bachelor.projectiii.components
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,9 +31,14 @@ import java.util.Locale
 fun DigitalClock(
     modifier: Modifier = Modifier,
     timeColor: Color = Color(0xFF1E293B),
-    dateColor: Color = Color(0xFF64748B)
+    dateColor: Color = Color(0xFF64748B),
+    onSecretClick: (() -> Unit)? = null
 ) {
     var currentTime by remember { mutableStateOf(Date()) }
+
+    // Track click count for 5 consecutive taps
+    var clickCount by remember { mutableIntStateOf(0) }
+    var lastClickTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -43,7 +52,24 @@ fun DigitalClock(
     val dateFormat = remember { SimpleDateFormat("EEEE, 'ngày' dd 'tháng' MM, yyyy", Locale.forLanguageTag("vi-VN")) }
 
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                val now = System.currentTimeMillis()
+                // Reset counter if taps are separated by more than 1 second
+                if (now - lastClickTime < 1000L) {
+                    clickCount++
+                } else {
+                    clickCount = 1
+                }
+                lastClickTime = now
+                if (clickCount >= 5) {
+                    clickCount = 0
+                    onSecretClick?.invoke()
+                }
+            },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {

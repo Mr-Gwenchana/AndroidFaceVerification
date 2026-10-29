@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import com.bachelor.projectiii.components.DigitalClock
 import com.bachelor.projectiii.components.SideNavBar
 import com.bachelor.projectiii.components.SideNavItem
+import com.bachelor.projectiii.`const`.MainNavRoutes
 import com.bachelor.projectiii.`const`.mainNavItems
 import com.bachelor.projectiii.models.NavItemModel
 
@@ -54,7 +55,9 @@ fun HomeScreen(
                 .background(Color.White),
             contentAlignment = Alignment.Center
         ) {
-            DigitalClock()
+            DigitalClock(
+                onSecretClick = { onNavigate(MainNavRoutes.SETTINGS) }
+            )
         }
     }
 }

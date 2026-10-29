@@ -30,11 +30,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.bachelor.projectiii.camera.CameraManager
 import com.bachelor.projectiii.camera.rememberInstOfCameraPermission
 import com.bachelor.projectiii.components.FaceBoundingBoxOverlay
+import com.bachelor.projectiii.core.ServiceLocator
 import com.bachelor.projectiii.faceRecognition.FaceAnalyzer
-import com.bachelor.projectiii.faceRecognition.FaceStorageManager
 import com.bachelor.projectiii.interfaces.IFaceAnalyzer
 import com.bachelor.projectiii.models.FaceDetectionResModel
 
@@ -49,16 +48,15 @@ fun FaceRecognitionScreen(
     val cameraPermission = rememberInstOfCameraPermission()
     val hasCameraPermission = cameraPermission.hasCameraPermission
 
-    val cameraManager = remember { CameraManager.getInstance(context) }
+    val cameraManager = remember { ServiceLocator.cameraManager }
     var isCameraInitialized by remember { mutableStateOf(false) }
 
     var previewView1 by remember { mutableStateOf<PreviewView?>(null) }
     var previewView2 by remember { mutableStateOf<PreviewView?>(null) }
 
-    val storageManager = remember { FaceStorageManager(context) }
     var detectedFaces by remember { mutableStateOf<List<FaceDetectionResModel>>(emptyList()) }
     val faceAnalyzer: IFaceAnalyzer = remember {
-        FaceAnalyzer(storageManager = storageManager) { faces -> detectedFaces = faces }
+        FaceAnalyzer { faces -> detectedFaces = faces }
     }
 
     LaunchedEffect(Unit) {

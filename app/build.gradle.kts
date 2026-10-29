@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -34,6 +36,14 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += listOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/io.netty.versions.properties"
+            )
+        }
+    }
 }
 
 dependencies {
@@ -60,6 +70,23 @@ dependencies {
 
     // ML Kit Face Detection (Bundled)
     implementation(libs.mlkit.face.detection)
+
+    // HiveMQ MQTT Client
+    implementation(libs.hivemq.mqtt.client)
+
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
+    // DataStore Preferences
+    implementation(libs.androidx.datastore.preferences)
+
+    // OkHttp
+    implementation(libs.okhttp)
+
+    // Kotlinx Serialization JSON
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
