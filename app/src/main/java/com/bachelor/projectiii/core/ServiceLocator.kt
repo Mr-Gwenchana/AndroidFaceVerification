@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.bachelor.projectiii.camera.CameraManager
 import com.bachelor.projectiii.data.local.AppDatabase
 import com.bachelor.projectiii.data.local.prefs.DevicePrefs
+import com.bachelor.projectiii.mqtt.MqttManager
 
 /**
  * Manual Dependency Injection (Service Locator) with lazy singleton evaluation.
@@ -58,6 +59,17 @@ object ServiceLocator {
     val networkMonitor: NetworkMonitor by lazy {
         checkInitialized()
         NetworkMonitor(applicationContext)
+    }
+
+    /**
+     * Singleton instance of MqttManager.
+     */
+    val mqttManager: MqttManager by lazy {
+        checkInitialized()
+        MqttManager(
+            networkMonitor = networkMonitor,
+            devicePrefs = devicePrefs
+        )
     }
 
     private fun checkInitialized() {
