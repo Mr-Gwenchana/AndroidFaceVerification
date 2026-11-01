@@ -1,7 +1,9 @@
 package com.bachelor.projectiii.core
 
 import android.content.Context
+import androidx.room.Room
 import com.bachelor.projectiii.camera.CameraManager
+import com.bachelor.projectiii.data.local.AppDatabase
 import com.bachelor.projectiii.data.local.prefs.DevicePrefs
 
 /**
@@ -23,6 +25,18 @@ object ServiceLocator {
     }
 
     /**
+     * Singleton instance of Room AppDatabase.
+     */
+    val appDatabase: AppDatabase by lazy {
+        checkInitialized()
+        Room.databaseBuilder(
+            applicationContext,
+            AppDatabase::class.java,
+            "project_iii.db"
+        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+    }
+
+    /**
      * Singleton instance of DevicePrefs (DataStore Preferences).
      */
     val devicePrefs: DevicePrefs by lazy {
@@ -36,6 +50,14 @@ object ServiceLocator {
     val cameraManager: CameraManager by lazy {
         checkInitialized()
         CameraManager.getInstance(applicationContext)
+    }
+
+    /**
+     * Singleton instance of NetworkMonitor.
+     */
+    val networkMonitor: NetworkMonitor by lazy {
+        checkInitialized()
+        NetworkMonitor(applicationContext)
     }
 
     private fun checkInitialized() {
