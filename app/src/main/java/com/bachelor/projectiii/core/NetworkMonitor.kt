@@ -4,14 +4,12 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.util.Collections
 
 /**
- * Monitors network availability in real-time using ConnectivityManager.NetworkCallback.
+ * Monitors default system network availability in real-time.
  * Exposes a reactive StateFlow without memory leaks by binding to applicationContext.
  */
 class NetworkMonitor(context: Context) {
@@ -20,20 +18,16 @@ class NetworkMonitor(context: Context) {
     private val connectivityManager =
         appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
-    private val validNetworks = Collections.synchronizedSet(mutableSetOf<Network>())
-
     private val _isOnline = MutableStateFlow(checkInitialConnectivity())
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            validNetworks.add(network)
             _isOnline.value = true
         }
 
         override fun onLost(network: Network) {
-            validNetworks.remove(network)
-            _isOnline.value = validNetworks.isNotEmpty() || checkInitialConnectivity()
+            _isOnline.value = false
         }
 
         override fun onCapabilitiesChanged(
@@ -41,24 +35,16 @@ class NetworkMonitor(context: Context) {
             networkCapabilities: NetworkCapabilities
         ) {
             val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            if (hasInternet) {
-                validNetworks.add(network)
-            } else {
-                validNetworks.remove(network)
-            }
-            _isOnline.value = validNetworks.isNotEmpty()
+            _isOnline.value = hasInternet
         }
     }
 
     init {
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-        connectivityManager?.registerNetworkCallback(request, networkCallback)
+        connectivityManager?.registerDefaultNetworkCallback(networkCallback)
     }
 
     /**
-     * Inspects active network capabilities on startup.
+     * Inspects active default network capabilities on startup.
      */
     private fun checkInitialConnectivity(): Boolean {
         val cm = connectivityManager ?: return false
