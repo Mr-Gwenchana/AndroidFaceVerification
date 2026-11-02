@@ -68,7 +68,8 @@ object ServiceLocator {
         checkInitialized()
         MqttManager(
             networkMonitor = networkMonitor,
-            devicePrefs = devicePrefs
+            devicePrefs = devicePrefs,
+            appDatabase = appDatabase
         )
     }
 
