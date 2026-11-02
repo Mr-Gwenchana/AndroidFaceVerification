@@ -51,8 +51,9 @@ class MqttManager(
         }
     )
 
-    private val inboundHandlers = MqttTopicRegistry.createInboundHandlers(devicePrefs, appDatabase, json)
-    private val periodicPublishers = MqttTopicRegistry.createPeriodicPublishers(mqttClient, devicePrefs, json)
+    private val topicComponents = MqttTopicRegistry.createComponents(mqttClient, devicePrefs, appDatabase, json)
+    private val inboundHandlers = topicComponents.inboundHandlers
+    private val periodicPublishers = topicComponents.periodicPublishers
     private val router = MqttMessageRouter(inboundHandlers)
 
     private val periodicJobs = mutableListOf<Job>()
