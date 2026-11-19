@@ -1,32 +1,27 @@
 package com.bachelor.projectiii.faceRecognition
 
 import androidx.camera.core.ImageProxy
+import com.bachelor.projectiii.faceRecognition.detectors.GgMlKitDetector
 import com.bachelor.projectiii.interfaces.IFaceAnalyzer
+import com.bachelor.projectiii.interfaces.faceProcessing.IFaceDetector
 import com.bachelor.projectiii.models.FaceDetectionResModel
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetector
-import com.google.mlkit.vision.face.FaceDetectorOptions
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * ImageAnalysis.Analyzer for real-time face detection using Google ML Kit.
+ * ImageAnalysis.Analyzer for real-time face processing.
+ * Delegates face detection to [IFaceDetector].
  */
 class FaceAnalyzer(
+    private val detector: IFaceDetector = GgMlKitDetector(),
     private val onResult: (List<FaceDetectionResModel>) -> Unit
 ) : IFaceAnalyzer {
 
-    private val isProcessing = AtomicBoolean(false)
-
-    private val detector: FaceDetector = FaceDetection.getClient(
-        FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
-            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_NONE)
-            .setContourMode(FaceDetectorOptions.CONTOUR_MODE_NONE)
-            .enableTracking()
-            .build()
+    constructor(onResult: (List<FaceDetectionResModel>) -> Unit) : this(
+        detector = GgMlKitDetector(),
+        onResult = onResult
     )
+
+    private val isProcessing = AtomicBoolean(false)
 
     override fun analyze(imageProxy: ImageProxy) {
         // Drop frames if previous frame is still processing
@@ -35,41 +30,26 @@ class FaceAnalyzer(
             return
         }
 
-        val mediaImage = imageProxy.image
-        if (mediaImage == null) {
+        try {
+            detector.detect(
+                imageProxy = imageProxy,
+                onSuccess = { faces ->
+                    onResult(faces)
+                    imageProxy.close()
+                    isProcessing.set(false)
+                },
+                onError = {
+                    imageProxy.close()
+                    isProcessing.set(false)
+                }
+            )
+        } catch (e: Exception) {
             imageProxy.close()
             isProcessing.set(false)
-            return
         }
-
-        val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        val imageWidth = imageProxy.width
-        val imageHeight = imageProxy.height
-        val rotation = imageProxy.imageInfo.rotationDegrees
-
-        detector.process(inputImage)
-            .addOnSuccessListener { faces ->
-                val primaryFace = faces.firstOrNull()
-                if (primaryFace != null) {
-                    val result = FaceDetectionResModel(
-                        boundingBox = primaryFace.boundingBox,
-                        trackingId = primaryFace.trackingId,
-                        imageWidth = imageWidth,
-                        imageHeight = imageHeight,
-                        rotationDegrees = rotation
-                    )
-                    onResult(listOf(result))
-                } else {
-                    onResult(emptyList())
-                }
-            }
-            .addOnCompleteListener {
-                imageProxy.close()
-                isProcessing.set(false)
-            }
     }
 
     override fun release() {
-        detector.close()
+        detector.release()
     }
 }
