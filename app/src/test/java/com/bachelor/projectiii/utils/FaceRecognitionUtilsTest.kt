@@ -2,6 +2,7 @@ package com.bachelor.projectiii.utils
 
 import com.bachelor.projectiii.faceRecognition.CachedBioProfile
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -154,7 +155,7 @@ class FaceRecognitionUtilsTest {
         assertNull(result.bioId)
         assertNull(result.fullName)
         assertEquals(0.0f, result.score, 1e-5f)
-        org.junit.Assert.assertFalse(result.isMatched)
+        assertFalse(result.isMatched)
     }
 
     @Test

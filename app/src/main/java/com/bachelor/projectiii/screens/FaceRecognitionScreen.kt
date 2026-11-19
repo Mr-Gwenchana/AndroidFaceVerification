@@ -1,5 +1,6 @@
 package com.bachelor.projectiii.screens
 
+import android.widget.Toast
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,8 @@ import com.bachelor.projectiii.core.ServiceLocator
 import com.bachelor.projectiii.faceRecognition.FaceAnalyzer
 import com.bachelor.projectiii.interfaces.IFaceAnalyzer
 import com.bachelor.projectiii.models.FaceDetectionResModel
+import com.bachelor.projectiii.models.FaceMatchResModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun FaceRecognitionScreen(
@@ -55,8 +58,34 @@ fun FaceRecognitionScreen(
     var previewView2 by remember { mutableStateOf<PreviewView?>(null) }
 
     var detectedFaces by remember { mutableStateOf<List<FaceDetectionResModel>>(emptyList()) }
+    var matchResult by remember { mutableStateOf<FaceMatchResModel?>(null) }
+    var isSuccessHandled by remember { mutableStateOf(false) }
+
     val faceAnalyzer: IFaceAnalyzer = remember {
-        FaceAnalyzer { faces -> detectedFaces = faces }
+        FaceAnalyzer(context = context) { faces, result ->
+            if (!isSuccessHandled) {
+                detectedFaces = faces
+                matchResult = result
+            }
+        }
+    }
+
+    LaunchedEffect(matchResult) {
+        val result = matchResult
+        if (result?.isMatched == true && !isSuccessHandled) {
+            isSuccessHandled = true
+            Toast.makeText(context, "Chào mừng ${result.fullName}", Toast.LENGTH_SHORT).show()
+            delay(600)
+            cameraManager.unbindAll()
+            faceAnalyzer.release()
+            onNavigateBack()
+        }
+    }
+
+    val boxColor = if (matchResult?.isMatched == true) {
+        Color(0xFF00E676)
+    } else {
+        Color(0xFFFF1744)
     }
 
     LaunchedEffect(Unit) {
@@ -119,6 +148,7 @@ fun FaceRecognitionScreen(
                 FaceBoundingBoxOverlay(
                     detectedFaces = detectedFaces,
                     isMirrored = true,
+                    boxColor = boxColor,
                     modifier = Modifier.fillMaxSize()
                 )
             }
