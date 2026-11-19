@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.bachelor.projectiii.camera.CameraManager
 import com.bachelor.projectiii.data.local.AppDatabase
 import com.bachelor.projectiii.data.local.prefs.DevicePrefs
+import com.bachelor.projectiii.faceRecognition.FaceTemplateCache
 import com.bachelor.projectiii.mqtt.MqttManager
 
 /**
@@ -71,6 +72,14 @@ object ServiceLocator {
             devicePrefs = devicePrefs,
             appDatabase = appDatabase
         )
+    }
+
+    /**
+     * Singleton instance of FaceTemplateCache.
+     */
+    val faceTemplateCache: FaceTemplateCache by lazy {
+        checkInitialized()
+        FaceTemplateCache(appDatabase.biometricDao())
     }
 
     private fun checkInitialized() {

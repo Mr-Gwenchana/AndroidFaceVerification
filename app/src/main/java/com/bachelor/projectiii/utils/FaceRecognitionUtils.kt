@@ -1,5 +1,7 @@
 package com.bachelor.projectiii.utils
 
+import com.bachelor.projectiii.faceRecognition.CachedBioProfile
+import com.bachelor.projectiii.models.FaceMatchResModel
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.sqrt
@@ -83,6 +85,47 @@ object FaceRecognitionUtils {
         val vectorB = decodeBase64ToVector(templateB) ?: return 0.0f
         val cosine = calculateCosineSimilarity(vectorA, vectorB)
         return similarityToScore(cosine)
+    }
+
+    /**
+     * Scans a live vector (128-d) against a list of cached biometric profiles (1:N matching),
+     * and returns the best match result.
+     *
+     * @param liveVector Normalized 128-d live face embedding.
+     * @param profiles Cached profiles loaded in RAM.
+     * @param threshold Minimum confidence threshold (default 0.80f / 80%).
+     * @return [FaceMatchResModel] with bioId/fullName if score >= threshold, or null bioId/fullName if score < threshold.
+     */
+    fun findBestMatch(
+        liveVector: FloatArray,
+        profiles: List<CachedBioProfile>,
+        threshold: Float = DEFAULT_MATCH_THRESHOLD
+    ): FaceMatchResModel {
+        var bestBioId: Long? = null
+        var bestName: String? = null
+        var maxScore = 0.0f
+
+        for (i in 0 until profiles.size) {
+            val profile = profiles[i]
+            val vectors = profile.rgbVectors
+            for (j in 0 until vectors.size) {
+                val cosine = calculateCosineSimilarity(liveVector, vectors[j])
+                val score = similarityToScore(cosine)
+                if (score > maxScore) {
+                    maxScore = score
+                    if (score >= threshold) {
+                        bestBioId = profile.bioId
+                        bestName = profile.fullName
+                    }
+                }
+            }
+        }
+
+        return FaceMatchResModel(
+            bioId = bestBioId,
+            fullName = bestName,
+            score = maxScore
+        )
     }
 
     /**
