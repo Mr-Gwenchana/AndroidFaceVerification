@@ -17,7 +17,7 @@ fun FaceBoundingBoxOverlay(
     detectedFaces: List<FaceDetectionResModel>,
     modifier: Modifier = Modifier,
     isMirrored: Boolean = false,
-    boxColor: Color = Color(0xFF00E676)
+    boxColor: Color = Color(0xFFFF1744)
 ) {
     Canvas(modifier = modifier.fillMaxSize()) {
         if (detectedFaces.isEmpty()) return@Canvas
